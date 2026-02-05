@@ -1,5 +1,11 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{associated_token::AssociatedToken, token_interface::{Mint, TokenAccount, TokenInterface, TransferChecked, transfer_checked, CloseAccount, close_account}};
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token_interface::{
+        close_account, transfer_checked, CloseAccount, Mint, TokenAccount, TokenInterface,
+        TransferChecked,
+    },
+};
 
 use crate::state::Escrow;
 
@@ -56,7 +62,22 @@ pub struct Take<'info> {
 //Deposit tokens from taker to maker
 //Transfer tokens from vault to taker
 //Close vault account
+#[error_code]
+pub enum ErrorCode {
+    #[msg("Escrow has not waiting yet. Cannot take before waiting time.")]
+    EscrowNotExpired,
+}
+
 impl<'info> Take<'info> {
+    pub fn check_waiting_time(&self) -> Result<()> {
+        let current_time = Clock::get()?.unix_timestamp;
+        require!(
+            current_time >= self.escrow.waiting_time,
+            ErrorCode::EscrowNotExpired
+        );
+        Ok(())
+    }
+
     pub fn deposit(&mut self) -> Result<()> {
         let cpi_program = self.token_program.to_account_info();
 
@@ -77,7 +98,7 @@ impl<'info> Take<'info> {
             b"escrow",
             self.maker.key.as_ref(),
             &self.escrow.seed.to_le_bytes()[..],
-            &[self.escrow.bump]
+            &[self.escrow.bump],
         ]];
 
         let cpi_program = self.token_program.to_account_info();

@@ -1,5 +1,8 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{associated_token::AssociatedToken, token_interface::{Mint, TokenAccount, TokenInterface, TransferChecked, transfer_checked}};
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token_interface::{transfer_checked, Mint, TokenAccount, TokenInterface, TransferChecked},
+};
 
 use crate::state::Escrow;
 
@@ -37,13 +40,22 @@ pub struct Make<'info> {
 }
 
 impl<'info> Make<'info> {
-    pub fn init_escrow(&mut self, seed: u64, receive: u64, bumps: &MakeBumps) -> Result<()> {
+    pub fn init_escrow(
+        &mut self,
+        seed: u64,
+        receive: u64,
+        waiting_time: i64,
+        bumps: &MakeBumps,
+    ) -> Result<()> {
+        let current_time = Clock::get()?.unix_timestamp;
+
         self.escrow.set_inner(Escrow {
             seed,
             maker: self.maker.key(),
             mint_a: self.mint_a.key(),
             mint_b: self.mint_b.key(),
             receive,
+            waiting_time: current_time + waiting_time,
             bump: bumps.escrow,
         });
 

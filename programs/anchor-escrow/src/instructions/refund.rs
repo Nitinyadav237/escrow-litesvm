@@ -1,5 +1,11 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{transfer_checked, Mint, TokenAccount, TokenInterface, TransferChecked, CloseAccount, close_account};
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token_interface::{
+        close_account, transfer_checked, CloseAccount, Mint, TokenAccount, TokenInterface,
+        TransferChecked,
+    },
+};
 
 use crate::state::Escrow;
 
@@ -12,6 +18,7 @@ pub struct Refund<'info> {
         mut,
         associated_token::mint = mint_a,
         associated_token::authority = maker,
+        associated_token::token_program = token_program,  
     )]
     maker_ata_a: InterfaceAccount<'info, TokenAccount>,
     #[account(
@@ -27,8 +34,10 @@ pub struct Refund<'info> {
         mut,
         associated_token::mint = mint_a,
         associated_token::authority = escrow,
+        associated_token::token_program = token_program,
     )]
     vault: InterfaceAccount<'info, TokenAccount>,
+    associated_token_program: Program<'info, AssociatedToken>,
     token_program: Interface<'info, TokenInterface>,
     system_program: Program<'info, System>,
 }
@@ -39,9 +48,9 @@ impl<'info> Refund<'info> {
             b"escrow",
             self.maker.key.as_ref(),
             &self.escrow.seed.to_le_bytes()[..],
-            &[self.escrow.bump]
+            &[self.escrow.bump],
         ]];
-        
+
         let cpi_program = self.token_program.to_account_info();
 
         let cpi_accounts = TransferChecked {
@@ -66,7 +75,7 @@ impl<'info> Refund<'info> {
         let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, &signer_seeds);
 
         close_account(cpi_context)?;
-        
+
         Ok(())
     }
 }
